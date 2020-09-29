@@ -6,9 +6,13 @@ library(ggplot2)
 set.seed(1014)
 
 ## ----message=FALSE------------------------------------------------------------
-obs_data <- as.data.table(tidyvpc::obs_data)
-sim_data <- as.data.table(tidyvpc::sim_data)
+obs_data <- data.table::as.data.table(tidyvpc::obs_data)
 head(obs_data)
+
+
+## ----message=FALSE------------------------------------------------------------
+sim_data <- data.table::as.data.table(tidyvpc::sim_data)
+head(sim_data)
 
 
 ## -----------------------------------------------------------------------------

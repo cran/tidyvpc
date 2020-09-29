@@ -1,18 +1,24 @@
 tidyvpc
 ========
-<!-- badges: start -->
-  [![Travis build status](https://travis-ci.org/jameswcraig/tidyvpc.svg?branch=master)](https://travis-ci.org/jameswcraig/tidyvpc)
-  <!-- badges: end -->
+
+<img src="https://github.com/jameswcraig/tidyvpc/blob/master/inst/img/logo_tidyvpc.png?raw=true"  width="200">
   
 ### Installation and Running information
 ```
-# Install devtools if not previously installed.
-# install.packages("devtools")
 # If there are errors (converted from warning) during installation related to packages built under different version of R,
 # they can be ignored by setting the environment variable R_REMOTES_NO_ERRORS_FROM_WARNINGS="true" before calling install_github()
 Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS="true")
-devtools::install_github("jameswcraig/tidyvpc")
+remotes::install_github("certara/tidyvpc")
 ```
+
+### Data Preprocessing
+`tidyvpc` requires specific structure of observed and simulated data in order to sucessfully generate VPC.
+
+* DV cannot be 0 or missing in observed/simulated data i.e. subset `MDV == 0`
+* Ordering of observed and simulated data must be consistent
+* Replicates in simulated data must be stacked on top of each other
+
+See `tidyvpc::obs_data` and `tidyvpc::sim_data` for example data structures.
 
 ### Usage
 

@@ -7,7 +7,17 @@
 \usage{
 observed(o, ...)
 
-\method{observed}{data.frame}(o, x, yobs, pred = NULL, blq, lloq = -Inf, alq, uloq = Inf, ...)
+\method{observed}{data.frame}(
+  o,
+  x,
+  yobs,
+  pred = NULL,
+  blq = NULL,
+  lloq = -Inf,
+  alq = NULL,
+  uloq = Inf,
+  ...
+)
 }
 \arguments{
 \item{o}{data.frame or data.table of observation data}
@@ -36,7 +46,8 @@ A \code{tidyvpcobj} containing both original data and observed data formatted wi
 Specify observed dataset and variables for VPC
 }
 \details{
-The observed function is the first function in the vpc piping chain and is used for specifying observed data and variables for VPC
+The observed function is the first function in the vpc piping chain and is used for specifying observed data and variables for VPC. Note: Observed
+data must not contain missing DV and may require subsetting \code{MDV == 0} before generating VPC.
 }
 \examples{
 obs_data <- as.data.table(tidyvpc::obs_data)

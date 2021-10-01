@@ -3,6 +3,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 options(datatable.print.nrows = 8)
 library(tidyvpc)
 library(ggplot2)
+library(magrittr)
 set.seed(1014)
 
 ## ----message=FALSE------------------------------------------------------------
@@ -14,6 +15,8 @@ head(obs_data)
 sim_data <- data.table::as.data.table(tidyvpc::sim_data)
 head(sim_data)
 
+## ----echo=FALSE---------------------------------------------------------------
+sim_data <- sim_data[REP <= 30]
 
 ## -----------------------------------------------------------------------------
 obs_data <- obs_data[MDV == 0]
@@ -158,14 +161,14 @@ vpc <- observed(obs_data, x=TIME, y=DV) %>%
 plot(vpc)
 
 ## ----warning = FALSE, fig.width = 9, fig.height = 6, out.width=640------------
-new_lambda = data.frame(GENDER_F = c(2,4,2), GENDER_M = c(1.9,3,2.25) )
+user_lambda <- data.frame(GENDER_F = c(2,4,2), GENDER_M = c(1.9,3,2.25) )
 
 vpc <- observed(obs_data, x=TIME, y=DV) %>%
     simulated(sim_data, y=DV) %>%
     stratify(~ GENDER) %>%
     predcorrect(pred=PRED) %>%
-    binless(qpred = c(0.1, 0.5, 0.9), optimize = FALSE, lambda = new_lambda, loess.ypc = TRUE, span = c(.6, .85)) %>%
-    vpcstats()
+    binless(optimize = FALSE, lambda = user_lambda, loess.ypc = TRUE, span = c(.6, .85)) %>%
+    vpcstats(qpred = c(0.1, 0.5, 0.9))
 
 plot(vpc)
 

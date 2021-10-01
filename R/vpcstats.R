@@ -4,14 +4,16 @@
 #' in a VPC. They would typically be chained together using the "pipe" operator
 #' (see Examples).
 #'
-#' @param o An object.
+#' @param o A \code{tidyvpcobj}.
 #' @param ... Additional arguments.
 #'
 #' @import data.table
-#' @import magrittr
+#' @import ggplot2
+#' @importFrom magrittr %>%
 #' @import quantreg
 #' @import classInt
-#' @importFrom stats median model.frame quantile setNames update AIC fitted loess na.exclude optimize resid time
+#' @importFrom mgcv gam
+#' @importFrom stats median as.formula model.frame quantile setNames update AIC fitted loess na.exclude optimize resid time qnorm cov runif
 #' @importFrom utils install.packages installed.packages
 #' @name generics
 NULL
@@ -19,23 +21,20 @@ NULL
 #' Specify observed dataset and variables for VPC
 #' 
 #' The observed function is the first function in the vpc piping chain and is used for specifying observed data and variables for VPC. Note: Observed
-#' data must not contain missing DV and may require subsetting \code{MDV == 0} before generating VPC.
+#' data must not contain missing DV and may require filtering \code{MDV == 0} before generating VPC.
 #' 
-#' @title observed
-#' @param o data.frame or data.table of observation data
-#' @param x numeric x-variable, typically named TIME
-#' @param yobs numeric y-variable, typically named DV
-#' @param pred population prediction variable, typically named PRED
-#' @param blq logical variable indicating below limit of quantification 
-#' @param lloq number or numeric variable in data indicating the lower limit of quantification
-#' @param alq logical variable indicating above limit of quantification 
-#' @param uloq number or numeric variable in data indicating the upper limit of quantification
-#' @param ... other arguments
-#' @return A \code{tidyvpcobj} containing both original data and observed data formatted with \code{x} & \code{y} variables as specified in function.
+#' @param o A \code{data.frame} of observation data.
+#' @param x Numeric x-variable, typically named TIME.
+#' @param yobs Numeric y-variable, typically named DV.
+#' @param pred Population prediction variable, typically named PRED.
+#' @param blq Logical variable indicating below limit of quantification.
+#' @param lloq Number or numeric variable in data indicating the lower limit of quantification.
+#' @param alq Logical variable indicating above limit of quantification .
+#' @param uloq Number or numeric variable in data indicating the upper limit of quantification.
+#' @param ... Other arguments.
+#' @return A \code{tidyvpcobj} containing both original data and observed data formatted with \code{x} and \code{y} variables as specified in function.
 #'   Resulting data is of class \code{data.frame} and \code{data.table}.
 #' @examples
-#' obs_data <- as.data.table(tidyvpc::obs_data)
-#' sim_data <- as.data.table(tidyvpc::sim_data)
 #' 
 #' obs_data <- obs_data[MDV == 0]
 #' sim_data <- sim_data[MDV == 0]
@@ -68,22 +67,23 @@ observed.data.frame <- function(o, x, yobs, pred=NULL, blq=NULL, lloq=-Inf, alq=
 #' Specify simulated dataset and variables for VPC
 #' 
 #' The simulated function is used for specifying simulated input data and variables for VPC. Note: Simulated data must not 
-#' contain missing DV and may require subsetting \code{MDV == 0} before generating VPC. The ordering of observed and simulated 
+#' contain missing DV and may require filtering \code{MDV == 0} before generating VPC. The ordering of observed and simulated 
 #' data must also be consistent, with replicates in simulated data stacked on top of each other.
 #' 
-#' @title observed
-#' @param o tidyvpcobj
-#' @param data data.frame or data.table of simulated data
-#' @param ysim numeric y-variable, typically named DV
-#' @param ... other arguments
-#' @return A \code{tidyvpcobj} containing simulated dataset \code{sim} formatted with columns \code{x}, \code{y}, and \code{repl} which indicates the replicate number.
+#' @param o A \code{tidyvpcobj}.
+#' @param data A \code{data.frame} of simulated data.
+#' @param ysim Numeric y-variable, typically named DV.
+#' @param ... Other arguments.
+#' @return A \code{tidyvpcobj} containing simulated dataset \code{sim} formatted with columns \code{x}, \code{y}, and \code{repl}, which indicates the replicate number.
 #'  The column \code{x} is used from the \code{observed()} function. Resulting dataset is of class \code{data.frame} and \code{data.table}.
 #' @examples
+#' require(magrittr)
+#' 
 #' vpc <- observed(obs_data, x=TIME, y=DV) %>%
 #'     simulated(sim_data, y=DV) 
 #'     
 #' @seealso \code{\link{observed}} \code{\link{censoring}} \code{\link{stratify}} \code{\link{predcorrect}} \code{\link{binning}} \code{\link{binless}} \code{\link{vpcstats}}
-
+#' @name simulated
 #' @export
 simulated <- function(o, ...) UseMethod("simulated")
 
@@ -102,22 +102,20 @@ simulated.tidyvpcobj <- function(o, data, ysim, ...) {
 
 #' Censoring observed data for Visual Predictive Check (VPC)
 #' 
-#' Specify censoring variables or censoring value for VPC using this function
+#' Specify censoring variable or censoring value for VPC.
 #' 
-#' @title censoring
-#' @param o tidyvpc object
-#' @param blq blq variable if present in observed data 
-#' @param lloq lloq variable if present in observed data. Use numeric to specify lloq value
-#' @param alq logical variable indicating above limit of quantification 
-#' @param uloq number or numeric variable in data indicating the upper limit of quantification
-#' @param data observed data supplied in \code{observed()} function
-#' @param ... Other arguments to include
+#' @param o A \code{tidyvpcobj}.
+#' @param blq blq variable if present in observed data.
+#' @param lloq Numeric value or numeric variable in data indicating the upper limit of quantification.
+#' @param alq Logical variable indicating above limit of quantification.
+#' @param uloq Numeric value or numeric variable in data indicating the upper limit of quantification.
+#' @param data Observed data supplied in \code{observed()} function.
+#' @param ... Other arguments to include.
 #' @return Updates \code{obs} \code{data.frame} in \code{tidypcobj} with censored values for observed data which includes \code{lloq} and \code{uloq} specified 
-#'  values for lower/upper limit of quantification. Logicals for \code{blq} and \code{alq} are returned which indicate whether the DV value lies below/above limit 
+#'  values for lower/upper limit of quantification. Logicals for \code{blq} and \code{alq} are returned that indicate whether the DV value lies below/above limit 
 #'  of quantification. 
 #' @examples
-#' obs_data <- as.data.table(tidyvpc::obs_data)
-#' sim_data <- as.data.table(tidyvpc::sim_data)
+#' require(magrittr)
 #' 
 #' vpc <- observed(obs_data, x=TIME, y=DV) %>%
 #'     simulated(sim_data, y=DV) %>%
@@ -223,17 +221,18 @@ censoring.tidyvpcobj <- function(o, blq, lloq, alq, uloq, data=o$data, ...) {
 
 #' Stratification for Visual Predictive Check (VPC)
 #' 
-#' specify stratification variables for VPC using this function
+#' Use to specify stratification variables for VPC.
 #' 
-#' @title stratify
-#' @param o tidyvpc object
-#' @param formula formula for stratfication
-#' @param data Observed data supplied in \code{observed()} function
-#' @param ... Other arguments to include
-#' @return Returns updated \code{tidyvpcobj} with stratification formula, stratification column(s), and strat.split datasets which
+#' @param o A \code{tidyvpcobj}.
+#' @param formula Formula for stratification.
+#' @param data Observed data supplied in \code{observed()} function.
+#' @param ... Other arguments to include.
+#' @return Returns updated \code{tidyvpcobj} with stratification formula, stratification column(s), and strat.split datasets, which
 #'   is \code{obs} split by unique levels of stratification variable(s). Resulting datasets are of class object \code{data.frame}
 #'   and \code{data.table}.
 #' @examples 
+#' require(magrittr)
+#' 
 #' vpc <- observed(obs_data, x=TIME, y=DV) %>%
 #'     simulated(sim_data, y=DV) %>%
 #'     stratify(~ GENDER) %>%
@@ -300,23 +299,24 @@ stratify.tidyvpcobj <- function(o, formula, data=o$data, ...) {
 #' Binning methods for Visual Predictive Check (VPC)
 #' 
 #' This function executes binning methods available in classInt i.e. "jenks", "kmeans", "sd", "pretty", "pam", "kmeans", "hclust", "bclust", "fisher", and "dpih".
-#' You may also bin directly on x-variable or alternatively specify "centers" or "breaks". For explanation of binning methods see \code{\link[classInt]{classIntervals}}
+#' You may also bin directly on x-variable or alternatively specify "centers" or "breaks". For explanation of binning methods see \code{\link[classInt]{classIntervals}}.
 #' 
-#' @title binning
-#' @param o tidyvpc object
+#' @param o A \code{tidyvpcobj}.
 #' @param bin Character string indicating binning method or unquoted variable name if binning on x-variable. 
-#' @param data Observed data supplied in \code{observed()} function
-#' @param xbin Character string indicating midpoint type for binning
-#' @param centers Numeric vector of centers for binning. Use \code{bin = "centers"} if supplying centers
-#' @param breaks Numeric vector of breaks for binning. Use \code{bin = "breaks"} if supplying breaks
-#' @param nbins Numeric number indicating the number of bins to use
-#' @param altx  Unquoted variable name in observed data for elternative x-variable binning
-#' @param stratum List indicating the name of stratification variable and level if using different binning methods by strata
-#' @param by.strata Logical indicating whether binning should be performed by strata
-#' @param ... Other arguments to include
-#' @return Updates \code{tidyvpcobj} with \code{data.frame} containing bin information including left/right boundaries and midpoint as specified in \code{xbin} argument
+#' @param data Observed data supplied in \code{observed()} function.
+#' @param xbin Character string indicating midpoint type for binning.
+#' @param centers Numeric vector of centers for binning. Use \code{bin = "centers"}, if supplying centers.
+#' @param breaks Numeric vector of breaks for binning. Use \code{bin = "breaks"}, if supplying breaks.
+#' @param nbins Numeric number indicating the number of bins to use.
+#' @param altx  Unquoted variable name in observed data for alternative x-variable binning.
+#' @param stratum List indicating the name of stratification variable and level, if using different binning methods by strata.
+#' @param by.strata Logical indicating whether binning should be performed by strata.
+#' @param ... Other arguments to include.
+#' @return Updates \code{tidyvpcobj} with \code{data.frame} containing bin information including left/right boundaries and midpoint, as specified in \code{xbin} argument.
 #' @seealso \code{\link{observed}} \code{\link{simulated}} \code{\link{censoring}} \code{\link{predcorrect}} \code{\link{stratify}} \code{\link{binless}} \code{\link{vpcstats}}
 #' @examples 
+#' require(magrittr)
+#' 
 #'  # Binning on x-variable NTIME
 #' vpc <- observed(obs_data, x=TIME, y=DV) %>%
 #'     simulated(sim_data, y=DV) %>%
@@ -342,6 +342,13 @@ stratify.tidyvpcobj <- function(o, formula, data=o$data, ...) {
 #'     binning(stratum = list(GENDER = "M"), bin = "jenks", nbins = 5, by.strata = TRUE) %>%
 #'     binning(stratum = list(GENDER = "F"), bin = "pam", nbins = 4, by.strata = TRUE) %>%
 #'     vpcstats()
+#'     
+#'  # Binning Categorical DV using rounded time variable
+#'   
+#'   vpc <- observed(obs_cat_data, x = agemonths, y = zlencat ) %>%
+#'       simulated(sim_cat_data, y = DV) %>%
+#'       binning(bin = round(agemonths, 0)) %>%
+#'       vpcstats(vpc.type = "categorical")
 #' 
 #' @export
 binning <- function(o, ...) UseMethod("binning")
@@ -501,33 +508,38 @@ binning.tidyvpcobj <- function(o, bin, data=o$data, xbin="xmedian", centers, bre
   } else {
     stop("Invalid xbin")
   }
-  update(o, xbin=xbin)
+  vpc.method <- list(method = "binning")
+  update(o, xbin=xbin, vpc.method = vpc.method)
 }
 
 #' Perform binless Visual Predictive Check (VPC)
 #' 
-#' Use this function in subsitute of traditional binning methods to derive VPC using additive quantile regression and loess for pcVPC.
+#' Use this function in place of traditional binning methods to derive VPC. For continuous
+#' VPC, this is obtained using additive quantile regression (\code{quantreg::rqss()}) and LOESS for pcVPC. While for categorical
+#' VPC, this is obtained using a generalized additive model (\code{gam(family = "binomial")}).
 #' 
-#' @title binless
-#' @param o tidyvpc object
-#' @param qpred numeric vector of length 3 specifying quantiles (lower, median, upper) i.e. \code{c(0.1, 0.5, 0.9)}
-#' @param optimize logical indicating whether lambda and span should be optimized using AIC
-#' @param optimization.interval numeric vector of length 2 specifying interval for lambda optimization
-#' @param conf.level numeric confidence level for binless fit
-#' @param loess.ypc logical indicating loess precition corrected. Must first use \code{predcorrect()} if \code{loess.ypc = TRUE}
-#' @param lambda numeric vector of length 3 specifying lambda values for each quantile
-#' @param span numeric number between 0,1 specying smoothing paramter for loess prediction corrected
-#' @param ... other arguments
-#' @return Updates \code{tidyvpcobj} with additive quantile regression fits for observed and simulated data for quantiles specified in \code{qpred} argument.
-#'   If \code{optimize = TRUE} argument is specified, the resulting \code{tidyvpcobj} will contain optimized lambda values according to AIC.  For prediction
-#'   corrected VPC (pcVPC), specifying \code{loess.ypc = TRUE} will return optimized span value for LOESS smoothing. 
+#' @param o A \code{tidyvpcobj}.
+#' @param optimize Logical indicating whether smoothing parameters should be optimized using AIC. 
+#' @param optimization.interval Numeric vector of length 2 specifying the min/max range of smoothing parameter for optimization. Only applicable if \code{optimize = TRUE}.
+#' @param loess.ypc Logical indicating LOESS prediction corrected VPC. Must first use \code{\link{predcorrect}}, if specifying \code{loess.ypc = TRUE}. Only applicable to continuous VPC.
+#' @param lambda Numeric vector of length 3 specifying lambda values for each quantile. If stratified, specify a \code{data.frame} with given strata represented the column name, and value specified as a numeric vector of length 3.
+#' See below examples. Only applicable to continuous VPC with \code{optimize = FALSE}.
+#' @param span Numeric between 0,1 specifying smoothing parameter for LOESS prediction correction. Only applicable for continuous VPC with \code{loess.ypc = TRUE} and \code{optimize = FALSE}.
+#' @param sp List of smoothing parameters applied to \code{mgcv::gam()}. Elements of list must be in the same order as unique values of DV. If one or more stratification variables present, the order of sp
+#' should be specified as unique combination of strata + DV, in ascending order. See below examples. Only applicable for categorical VPC, if \code{optimize = FALSE}.
+#' @param ... Other arguments to include will be ignored.
+#' @return For continuous VPC, updates \code{tidyvpcobj} with additive quantile regression fits for observed and simulated data for quantiles specified in the \code{qpred} argument of \code{vpcstats()}.
+#'   If the \code{optimize = TRUE} argument is specified, the resulting \code{tidyvpcobj} will contain optimized lambda values according to AIC.  For prediction
+#'   corrected VPC (pcVPC), specifying \code{loess.ypc = TRUE} will return optimized span value for LOESS smoothing. For categorical VPC, 
+#'   updates \code{tidyvpcobj} with fits obtained by \code{gam(family="binomial")} for observed and simulated data for each category of DV (in each stratum if \code{stratify} defined).
+#'   If \code{optimize = TRUE} argument is specified, the resulting \code{tidyvpcobj} wil contain optimized \code{sp} values according to AIC.
 
 #' @seealso \code{\link{observed}} \code{\link{simulated}} \code{\link{censoring}} \code{\link{predcorrect}} \code{\link{stratify}} \code{\link{binning}} \code{\link{vpcstats}}
 #' @examples 
 #' \donttest{
 #' 
-#' obs_data <- data.table::as.data.table(tidyvpc::obs_data)
-#' sim_data <- data.table::as.data.table(tidyvpc::sim_data)
+#' require(magrittr)
+#' require(data.table)
 #' 
 #' obs_data <- obs_data[MDV == 0]
 #' sim_data <- sim_data[MDV == 0]
@@ -559,24 +571,66 @@ binning.tidyvpcobj <- function(o, bin, data=o$data, xbin="xmedian", centers, bre
 #'  vpc <- observed(obs_data, y = DV, x = TIME) %>%
 #'       simulated(sim_data, y = DV) %>%
 #'       stratify(~ GENDER) %>%
-#'       binless(qpred = c(0.1, 0.5, 0.9), optimize = FALSE, lambda = lambda_strat) %>%
-#'       vpcstats()
+#'       binless(optimize = FALSE, lambda = lambda_strat) %>%
+#'       vpcstats(qpred = c(0.1, 0.5, 0.9))
+#'       
+#'  # Binless example for categorical DV with optimized smoothing
+#'  vpc <- observed(obs_cat_data, x = agemonths, yobs = zlencat) %>%
+#'        simulated(sim_cat_data, ysim = DV) %>%
+#'        stratify(~ Country_ID_code) %>%
+#'        binless() %>%
+#'        vpcstats(vpc.type = "cat", quantile.type = 6)
+#'        
+#'  # Binless example for categorical DV with user specified sp values
+#'  user_sp <- list(
+#'  Country1_prob0 = 100,
+#'  Country1_prob1 = 3,
+#'  Country1_prob2 = 4,
+#'  Country2_prob0 = 90,
+#'  Country2_prob1 = 3,
+#'  Country2_prob2 = 4,
+#'  Country3_prob0 = 55,
+#'  Country3_prob1 = 3,
+#'  Country3_prob2 = 200)
+#'  
+#'  vpc <- observed(obs_cat_data, x = agemonths, yobs = zlencat) %>%
+#'         simulated(sim_cat_data, ysim = DV) %>%
+#'         stratify(~ Country_ID_code) %>%
+#'         binless(optimize = FALSE, sp = user_sp) %>%
+#'         vpcstats(vpc.type = "categorical", conf.level = 0.9, quantile.type = 6)
 #' }
+#' 
 #' @export 
 binless <- function(o, ...) UseMethod("binless")
 
 #' @rdname binless
 #' @export
-binless.tidyvpcobj <- function(o, qpred = c(0.05, 0.50, 0.95), optimize = TRUE, optimization.interval = c(0,7), conf.level = .95, loess.ypc = FALSE,  lambda = NULL, span = NULL, ...) {
+binless.tidyvpcobj <- function(o, optimize = TRUE, optimization.interval = c(0,7), loess.ypc = FALSE,  lambda = NULL, span = NULL, sp = NULL, ...) {
   
   if(class(o) != "tidyvpcobj") {
     stop("No tidyvpcobj found, observed(...) %>% simulated(...) must be called prior to binless()")
   }
   
-  if(!optimize && is.null(lambda)) {
-    stop("Set optimize = TRUE if no lambda specified")
+  if(!optimize){
+    if(is.null(lambda) && is.null(sp)) {
+    stop("Set optimize = TRUE if no lambda or sp arguments specified")
+    }
+    # if(!is.null(sp) && length(sp) != length(unique(o$obs$y))){
+    #   stop("Argument `sp` must be a vector of length equal to the number of unique values of DV. \n
+    #        Note, `sp` argument is only applicable for categorical vpc.")
+    # }
   }
   
+  if(!is.null(sp)){
+    if(optimize){
+    optimize <- FALSE
+    }
+    sp <- lapply(sp, function(x)
+      x <- c(sp = x))
+  }
+  
+  
+ 
   if(loess.ypc && is.null(o$predcor)) {
     stop("Use predcorrect() before binless() in order to use LOESS prediction corrected")
   }
@@ -585,29 +639,34 @@ binless.tidyvpcobj <- function(o, qpred = c(0.05, 0.50, 0.95), optimize = TRUE, 
     stop("Set loess.ypc = TRUE and optimize = FALSE if setting span smoothing parameter for LOESS prediction corrected")
   }
   
-  o %>%
-    binlessaugment(qpred = qpred, interval =  optimization.interval, loess.ypc = loess.ypc) %>%
-    binlessfit(conf.level = conf.level, llam.quant = lambda, span = span)
+  #if binless categorical, check that sp length = number of unique categories of y
+
+  method <- list(method = "binless",
+                 optimize = optimize,
+                 optimization.interval = optimization.interval,
+                 loess.ypc = loess.ypc,
+                 lambda = lambda,
+                 span = span,
+                 sp = sp)
+  
+  update(o, vpc.method = method)
   
 }
 
 #' Prediction corrected Visual Predictive Check (pcVPC)
 #' 
-#' Specify prediction variable for pcVPC
+#' Specify prediction variable for pcVPC.
 #' 
-#' @title predcorrect
-#' @param o tidyvpc object
-#' @param pred prediction variable in observed data 
-#' @param data observed data supplied in \code{observed()} function
-#' @param ... Other arguments to include
-#' @param log logical indicating whether DV was modeled in logarithimic scale
-#' @return Updates \code{tidyvpcobj} with required information to performing prediction correction which include \code{predcor} logical indicating whether
-#'   prediction corrected VPC is to be performed, \code{predcor.log} logical indicating whether the DV is on a log-scale, and the \code{pred} prediction
+#' @param o A \code{tidyvpcobj}.
+#' @param pred Prediction variable in observed data.
+#' @param data Observed data supplied in \code{observed()} function.
+#' @param ... Other arguments to include.
+#' @param log Logical indicating whether DV was modeled in logarithmic scale.
+#' @return Updates \code{tidyvpcobj} with required information to performing prediction correction, which includes the \code{predcor} logical indicating whether
+#'   prediction corrected VPC is to be performed, the \code{predcor.log} logical indicating whether the DV is on a log-scale, and the \code{pred} prediction
 #'   column from the original data.
 #' @examples 
-#' 
-#' obs_data <- data.table::as.data.table(tidyvpc::obs_data)
-#' sim_data <- data.table::as.data.table(tidyvpc::sim_data)
+#' require(magrittr)
 #' 
 #' obs_data <- obs_data[MDV == 0]
 #' sim_data <- sim_data[MDV == 0]
@@ -675,13 +734,12 @@ predcorrect.tidyvpcobj <- function(o, pred, data=o$data, ..., log=FALSE) {
   update(o, predcor=TRUE, predcor.log=log, pred=pred )
 }
 
-#' No pred correction for Visual Predictive Check (VPC)
+#' Remove prediction correction for Visual Predictive Check (VPC)
 #' 
 #' Optional function to use indicating no pred correction for VPC. 
 #' 
-#' @title nopredcorrect
-#' @param o tidyvpcobj
-#' @param ... other arguments to include
+#' @param o A \code{tidyvpcobj}.
+#' @param ... Other arguments to include.
 #' @export
 nopredcorrect <- function(o, ...) UseMethod("nopredcorrect")
 
@@ -693,23 +751,24 @@ nopredcorrect.tidyvpcobj <- function(o, ...) {
 
 #' Compute VPC statistics
 #' 
-#' Compute predictional interval statistics for VPC
+#' Compute prediction interval statistics for VPC.
 #' 
-#' @title vpcstats
-#' @param o tidyvpc object
-#' @param qpred Numeric vector of length 3 specifying quantile prediction interval 
-#' @param ... Other arguments to include
-#' @param conf.level Numeric specifying confidence level
-#' @param quantile.type Numeric indicating quantile type. See \code{\link[stats]{quantile}} 
-#' @return Updates \code{tidyvpcobj} with \code{stats} \code{data.table} object which contains the following columns:
+#' @param o A \code{tidyvpcobj}.
+#' @param vpc.type Character specifying type of VPC (e.g., \code{"continuous"} (Default) or \code{"categorical"}).
+#' @param qpred Numeric vector of length 3 specifying quantile prediction interval. Only applicable for \code{vpc.type = "continuous"}.
+#' @param ... Other arguments to include.
+#' @param conf.level Numeric specifying confidence level.
+#' @param quantile.type Numeric indicating quantile type. See \code{\link[stats]{quantile}}.
+#' @return Updates \code{tidyvpcobj} with \code{stats} \code{data.table} object, which contains the following columns:
 #' \itemize{
-#'   \item \code{bin}: the resulting bin value as specified in `binning()` function
-#'   \item \code{xbin}: the midpoint x-value of the observed data points in the bin as specified in `xbin` argument of `binning()` function
-#'   \item \code{qname}: the quantiles specified in `qpred`
-#'   \item \code{y}: the observed y value for the specified quantile
-#'   \item \code{lo}: the lower bound of specified confidence interval for y value in simulated data
-#'   \item \code{md}: the median y value in simulated data
-#'   \item \code{hi}: the upper bound of specified confidence interval for y value in simulated data
+#'   \item \code{bin}: Resulting bin value as specified in \code{binning()} function
+#'   \item \code{xbin}: Midpoint x-value of the observed data points in the bin as specified in \code{xbin} argument of \code{binning()} function
+#'   \item \code{qname}: Quantiles specified in \code{qpred}.  Only returned if \code{vpc.type = "continuous"}
+#'   \item \code{pname}: Categorical probability names. Only returned if \code{vpc.type = "categorical"}
+#'   \item \code{y}: Observed y value for the specified quantile
+#'   \item \code{lo}: Lower bound of specified confidence interval for y value in simulated data
+#'   \item \code{md}: Median y value in simulated data
+#'   \item \code{hi}: Upper bound of specified confidence interval for y value in simulated data
 #' }
 #' @seealso \code{\link{observed}} \code{\link{simulated}} \code{\link{censoring}} \code{\link{stratify}} \code{\link{binning}} \code{\link{binless}} \code{\link{predcorrect}}
 #' @export
@@ -717,20 +776,180 @@ vpcstats <- function(o, ...) UseMethod("vpcstats")
 
 #' @rdname vpcstats
 #' @export
-vpcstats.tidyvpcobj <- function(o, qpred=c(0.05, 0.5, 0.95), ..., conf.level=0.95, quantile.type=7) {
+vpcstats.tidyvpcobj <- function(o, vpc.type =c("continuous", "categorical"), qpred=c(0.05, 0.5, 0.95), ..., conf.level=0.95, quantile.type=7) {
   
-  if(!is.null(o$rqss.obs.fits)) {
-    .binlessvpcstats(o)
+  type <- match.arg(vpc.type)
+  method <- o$vpc.method
+  
+  stopifnot(method$method %in% c("binless", "binning"))
+  stopifnot(length(qpred) == 3)
+  
+  repl <- ypc <- y <- x <- blq <- lloq <- alq <- uloq <- NULL
+  . <- list
+  qconf <- c(0, 0.5, 1) + c(1, 0, -1)*(1 - conf.level)/2
+  
+
+  obs      <- o$obs
+  sim      <- o$sim
+  predcor  <- o$predcor
+  stratbin <- o$.stratbin
+  xbin     <- o$xbin
+  strat    <- o$strat
+  
+  
+  
+  if(method$method == "binless" && type == "continuous"){  
+    o <- binlessaugment(o, qpred = qpred, interval =  method$optimization.interval, loess.ypc = method$loess.ypc)
+    o <- binlessfit(o, conf.level = conf.level, llam.quant = method$lambda, span = method$span)
+    }
+  
+  if(type == "categorical"){
+    if(.isCensored(obs)){
+      stop("Censoring not supported for categorical vpc")
+    }
+    
+    ylvls <-  sort(unique(obs$y))
+
+    #categorical binless vpcstats() ----
+    if(method$method == "binless"){
+      xobs     <- obs$x
+      xsim <- sim$x
+      sp <- method$sp
+      
+      .stratrepl <- data.table(strat, sim[, .(repl)])
+
+      # obs ----
+      obs <- obs[, fastDummies::dummy_columns(obs, select_columns = "y")]
+      
+      setnames(obs, paste0("y_", ylvls), paste0("prob", ylvls))
+      pobs <- melt(obs, id.vars = c(names(strat), "x"),
+                   measure.vars = paste0("prob", ylvls),
+                   variable.name = "pname", value.name = "y")
+      
+      pobs.split <- split(pobs, by = c(names(strat),"pname"), sorted = TRUE)
+
+      pobs.split <- pobs.split[lapply(pobs.split, nrow)>1]
+      
+    
+# Get optimized sp values, only if optimize = TRUE, else, skip this step and directly fit gam with user sp values
+    if(method$optimize){
+      sp_opt <- list()
+      
+      for(i in seq_along(pobs.split)){
+        sp_opt[[i]] <- pobs.split[[i]][, .(sp = optimize(.gam_optimize, 
+                                                         y = y, 
+                                                         x = x, 
+                                                         data = pobs.split[[i]], 
+                                                         interval = method$optimization.interval)$minimum)]
+        }
+     
+      names(sp_opt) <- names(pobs.split)
+      method$sp <- sp_opt
+      
+      for(i in seq_along(pobs.split)){
+        pobs.split[[i]][, y := .fitcatgam(y, x, sp = sp_opt[[i]]$sp)]
+      }
+
+    } else {
+      sp_opt <- method$sp
+      if(length(sp_opt) != length(pobs.split)){
+        stop(paste0("`incorrect number of elements specified to `sp` argument in `binless()` function, specify a list of length ", length(pobs.split), " in the following order: \n",
+                    paste0(names(pobs.split), collapse = "\n"), "\n",
+                    "Note: Do not specify a value for strata where not data is available."))
+      }
+      for(i in seq_along(pobs.split)){
+        pobs.split[[i]][, y := .fitcatgam(y, x, sp = sp_opt[[i]])]
+      }
+    }
+      pobs <- rbindlist(pobs.split)
+  
+      # sim ----
+      if(!is.null(strat)){
+        sim <- sim[, c(names(strat)) := rep(strat, len = .N), by = .(repl)]
+      }
+      
+      sim <- sim[, fastDummies::dummy_columns(sim, select_columns = "y")]
+      
+      setnames(sim, paste0("y_", ylvls), paste0("prob", ylvls))
+      
+      psim <- melt(sim, id.vars = c(names(.stratrepl), "x"),
+                   measure.vars = paste0("prob", ylvls),
+                   variable.name = "pname", value.name = "y")
+      
+      #Coerce y to double, or else data.table will attempt to coerce to integer and precision is lost
+      psim$y <- as.double(psim$y)
+      
+      psim.split <- split(psim, by = c(names(strat),"pname"), sorted = TRUE)
+      
+      psim.split <- psim.split[lapply(psim.split, nrow)>1]
+      
+      
+      if(method$optimize){
+      for(i in seq_along(psim.split)){
+        psim.split[[i]][, y := .fitcatgam(y, x, sp = sp_opt[[i]]$sp), by = list(repl)]
+      }
+      } else {
+        for(i in seq_along(psim.split)){
+          psim.split[[i]][, y := .fitcatgam(y, x, sp = sp_opt[[i]]), by = repl]
+        }
+      }
+      
+      psim <- rbindlist(psim.split)
+
+      .stratbinquant <- psim[, !c("repl", "y")]
+
+      ppsim <- psim[, .(lo=quantile(y,probs=qconf[[1]], type=quantile.type),
+                          md=median(y),
+                          hi=quantile(y,probs=qconf[[3]], type=quantile.type)), by = .stratbinquant]
+        
+        stats <- unique(pobs[ppsim, on=names(.stratbinquant)])
+        setkeyv(stats, c(names(strat), "x"))
+        
+    } else {
+    #categorical binning vpcstats() ----
+      if (is.null(stratbin)) {
+        stop("Need to specify binning before calling vpcstats.")
+      }
+      if (any(is.na(stratbin$bin))) {
+        warning("There are bins missing. Has binning been specified for all strata?", call.=F)
+      }
+
+    .stratbinrepl <- data.table(stratbin, sim[, .(repl)])
+  
+    obs <- obs[, fastDummies::dummy_columns(obs, select_columns = "y")]
+    pobs <- obs[, lapply(.SD, mean, na.rm=TRUE), by=stratbin, .SDcols=paste0("y_", ylvls)] 
+    setnames(pobs, paste0("y_", ylvls), paste0("prob", ylvls))
+    pobs <- melt(pobs, id.vars = names(stratbin),
+                 measure.vars = paste0("prob", ylvls),
+                 variable.name = "pname", value.name = "y")
+ 
+    sim <- sim[, fastDummies::dummy_columns(sim, select_columns = "y")]
+
+    psim <- sim[, lapply(.SD, mean, na.rm=TRUE), by=.stratbinrepl, .SDcols=paste0("y_", ylvls)] 
+    
+    setnames(psim, paste0("y_", ylvls), paste0("prob", ylvls))
+    psim <- melt(psim, id.vars = names(.stratbinrepl),
+                 measure.vars = paste0("prob", ylvls),
+                 variable.name = "pname", value.name = "y")
+   
+    .stratbinquant <- psim[, !c("repl", "y")]
+    qconf <- c(0, 0.5, 1) + c(1, 0, -1)*(1 - conf.level)/2
+    
+    ppsim <- psim[, .(lo=quantile(y,probs=qconf[[1]], type=quantile.type),
+                      md=median(y),
+                      hi=quantile(y,probs=qconf[[3]], type=quantile.type)), by = .stratbinquant]
+
+     stats <- pobs[ppsim, on=names(.stratbinquant)]
+     stats <- xbin[stats, on=names(stratbin)]
+     setkeyv(stats, c(names(o$strat), "xbin"))
+    }
+    #update vpc
+  update(o, stats=stats, conf.level=conf.level, vpc.type = type, vpc.method = method)
+# continuous vpcstats ----
+} else {
+  if(method$method == "binless") {
+    .binlessvpcstats(o, qpred=qpred, conf.level=conf.level, quantile.type=quantile.type, vpc.type = type, vpc.method = method) 
   } else {
-    repl <- ypc <- y <- blq <- lloq <- alq <- uloq <- NULL
-    . <- list
-    
-    obs      <- o$obs
-    sim      <- o$sim
-    predcor  <- o$predcor
-    stratbin <- o$.stratbin
-    xbin     <- o$xbin
-    
     
     if (is.null(stratbin)) {
       stop("Need to specify binning before calling vpcstats.")
@@ -801,8 +1020,10 @@ vpcstats.tidyvpcobj <- function(o, qpred=c(0.05, 0.5, 0.95), ..., conf.level=0.9
     } else {
       pctalq <- NULL
     }
-
-    update(o, stats=stats, pctblq=pctblq, pctalq=pctalq, conf.level=conf.level)
+    
+    update(o, stats=stats, pctblq=pctblq, pctalq=pctalq, conf.level=conf.level, vpc.type = type)
+    
+   }
   }
 }
 
@@ -815,8 +1036,11 @@ update.tidyvpcobj <- function(object, ...) {
   object
 }
 
-#' Print a \code{tidyvpcobj}.
-#' @param x An object.
+#' Print a \code{tidyvpcobj}
+#' 
+#' Print generic used to return information about VPC.
+#' 
+#' @param x An \code{tidyvpcobj}.
 #' @param ... Further arguments can be specified but are ignored.
 #' @return Returns \code{x} invisibly.
 #' @export
@@ -835,7 +1059,7 @@ print.tidyvpcobj <- function(x, ...) {
   invisible(x)
 }
 
-.binlessvpcstats <-  function(o, qpred=c(0.05, 0.5, 0.95), ..., conf.level=0.95, quantile.type=7){
+.binlessvpcstats <-  function(o, qpred=c(0.05, 0.5, 0.95), ..., conf.level=0.95, quantile.type=7, vpc.type){
   y <- x <- blq <- fit <- . <- repl <- cprop <- rqssmed <- llam.med <- c.rqssmed <-  NULL
   
   obs.fits <- o$rqss.obs.fits
@@ -951,11 +1175,11 @@ print.tidyvpcobj <- function(x, ...) {
         
         obs.cprop <- rbindlist(strat.split)
         obs.cprop <- setnames(obs.cprop[, lapply(.SD, median, na.rm = TRUE), by = x.strat, .SDcols = "c.rqssmed"], "c.rqssmed", "y")
-        
+       
         for (i in seq_along(strat.split.sim)) {
           setorder(strat.split.sim[[i]], cols = repl, x)
           strat.split.sim[[i]] <- strat.split.sim[[i]][, cprop := cumsum(blq) / 1:length(blq), by = .(repl)]
-          strat.split.sim[[i]][, c.rqssmed := fitted(rqss(cprop ~ qss(x, lambda = exp(llam.strat.med.cprop[[i]][[1]])),tau= .5, na.action = na.exclude, data = strat.split.sim[[i]])), by = .(repl)]
+          strat.split.sim[[i]][, c.rqssmed := fitted(rqss(cprop ~ qss(x, lambda = exp(llam.strat.med.cprop[[i]][[1]])),tau= .5, na.action = na.exclude, .SD)), by = .(repl)]
         }
         
         sim.cprop <- rbindlist(strat.split.sim)
@@ -971,77 +1195,31 @@ print.tidyvpcobj <- function(x, ...) {
     pctblq <- NULL
   }
   
-  update(o, stats = stats, pctblq = pctblq)
+  update(o, stats = stats, pctblq = pctblq, vpc.type = vpc.type)
 }
 
-#' Run Shiny app for tidyvpc
-#' 
-#' Use this function to run Shiny application to parameterize VPC from a GUI and generate corresponding tidyvpc code to derive VPC.
-#' 
-#' @title runShinyVPC
-#' @seealso \href{https://github.com/jameswcraig/shiny-vpc/blob/master/README.md/}{Shiny-VPC GitHub}
-#' @export
 
-runShinyVPC <- function() {
-    packagesCRAN <- c("remotes", "shiny", "backports", "DT", "ggplot2", "rlang", "shinyAce", "shinydashboard", "shinydashboardPlus", "shinyjs", "shinycssloaders", "shinyWidgets")
-    cat("In order to run Shiny VPC, the following packages are required: ", paste0("\n",packagesCRAN))
-    ANSWER <- readline("Enter y/n to install any missing packages and run Shiny VPC: ")
-    if (substr(ANSWER, 1, 1) == "y") {
-      cat("Installing Packages...")
-    for(i in packagesCRAN) {
-      if(system.file(package = i) == "") {
-        install.packages(i)
-      }
-    }
-      if(system.file(package = "shinymeta") == "") {
-        remotes::install_github("rstudio/shinymeta")
-      }
-      shiny::runGitHub("shiny-vpc", "jameswcraig")
-    } else {
-      cat("Required packages must be installed to execute runShinyVPC()")
-  }
-  
-  
-  # }
-  # 
-  # if (length(setdiff(packagesCRAN, rownames(find.package()))) > 0) {
-  #   showPrompt(title = "R will install the following packages to run Shiny VPC:", message = print(setdiff(packagesCRAN, rownames(find.package()))), default = NULL)
-  #   install.packages(setdiff(packagesCRAN, rownames(find.package())))  
-  # }
-  # 
-  # if(!is.element("shinymeta", installed.packages()[,1])) {
-  #   if (requireNamespace("remotes", quietly = TRUE)) {
-  #     remotes::install_github("rstudio/shinymeta")
-  #   }
-  # }
-  # 
-  # if (requireNamespace("shiny", quietly = TRUE)) {
-  # shiny::runGitHub("shiny-vpc", "jameswcraig")
-  # }
-  
-}
-
-#' Obtain information about the bins from a VPC object.
+#' Obtain information about the bins from a \code{tidyvpcobj}
 #' @param o An object.
 #' @param ... Additional arguments.
 #' @return A `data.table` containing the following columns:
 #' \itemize{
-#'   \item \code{nobs}: the number of observed data points in the bin
-#'   \item \code{xmedian}: the median x-value of the observed data points in the bin
-#'   \item \code{xmean}: the mean x-value of the observed data points in the bin
-#'   \item \code{xmax}: the maximum x-value of the observed data points in the bin
-#'   \item \code{xmin}: the minimum x-value of the observed data points in the bin
-#'   \item \code{xmid}: the value halfway between `xmin` and `xmax`.
+#'   \item \code{nobs}: Number of observed data points in the bin
+#'   \item \code{xmedian}: Median x-value of the observed data points in the bin
+#'   \item \code{xmean}: Mean x-value of the observed data points in the bin
+#'   \item \code{xmax}: Maximum x-value of the observed data points in the bin
+#'   \item \code{xmin}: Minimum x-value of the observed data points in the bin
+#'   \item \code{xmid}: Value halfway between `xmin` and `xmax`.
 #'   x-value of the observed data points in the bin
-#'   \item \code{xleft}: the value halfway between the minimum x-value of the
+#'   \item \code{xleft}: Value halfway between the minimum x-value of the
 #'   current bin and the maximum x-value of the previous bin to the left (for
-#'   the left-most bin it is the minimum x-value).
-#'   \item \code{xright}: the value halfway between the maximum x-value of the
+#'   the left-most bin, it is the minimum x-value).
+#'   \item \code{xright}: Value halfway between the maximum x-value of the
 #'   current bin and the minimum x-value of the next bin to the right (for the
-#'   right-most bin it is the maximum x-value).
-#'   \item \code{xcenter}: the value halfway between `xleft` and `xright`.
+#'   right-most bin, it is the maximum x-value).
+#'   \item \code{xcenter}: Value halfway between `xleft` and `xright`.
 #' }
-#' In addition, if statification was performed, the stratification columns will
+#' In addition, if stratification was performed, the stratification columns will
 #' be included as well.
 #' @export
 bininfo <- function(o, ...) UseMethod("bininfo")
@@ -1093,7 +1271,7 @@ bininfo.tidyvpcobj <- function(o, by.strata=o$bin.by.strata, ...) {
 #' @param breaks A numeric vector of values that designate cut points between bins.
 #' @param centers A numeric vector of values that designate the center of each bin.
 #' @param nbins The number of bins to split the data into.
-#' @param style a binning style (see ?classInt::classIntervals for details).
+#' @param style a binning style (see \link[classInt]{classIntervals} for details).
 #' @return Each of these functions returns a function of a single numeric
 #' vector `x` that assigns each value of `x` to a bin.
 #' @examples
@@ -1232,15 +1410,15 @@ bin_by_classInt <- function(style, nbins=NULL) {
   }
 }
 
-#' Perform a consistency check on observed and simulated data.
+#' Perform a consistency check on observed and simulated data
 #' 
 #' This function performs a simple consistency check on an observed and
 #' simulated dataset to make sure they are consistent with respect to ordering
 #' as required by the other functions used in the VPC calculation.
 #'
 #' The consistency check is performed by comparing a combination of unique
-#' subject identifier (ID) and time. Both `data.frame`s must be given with
-#' those in positions 1 and 2 repectively.
+#' subject identifier (ID) and time. Both \code{data.frame} objects must be given with
+#' those in positions 1 and 2, respectively.
 #'
 #' @param obs,sim A `data.frame` with 2 columns (see Details).
 #' @param tol A tolerance for comparing time values.
@@ -1249,12 +1427,10 @@ bin_by_classInt <- function(style, nbins=NULL) {
 #' @examples
 #'
 #' \donttest{
-#' library(vpc)
-#'
-#' exampleobs <- as.data.table(vpc::simple_data$obs)[MDV == 0]
-#' examplesim <- as.data.table(vpc::simple_data$sim)[MDV == 0]
-#'
-#' check_order(exampleobs[, .(ID, TIME)], examplesim[, .(ID, TIME)])
+#' 
+#'  require(data.table)
+#'  
+#' check_order(obs_data[, .(ID, TIME)], sim_data[, .(ID, TIME)])
 #' }
 #' @export
 check_order <- function(obs, sim, tol=1e-5) {
@@ -1672,7 +1848,21 @@ binlessfit <- function(o, conf.level = .95, llam.quant = NULL, span = NULL, ...)
   
 }
 
-# Internal Function
+# Internal Functions ----
+
+# Dispatches AIC.gam method
+.gam_optimize <- function(sp, y, x, data){
+  suppressWarnings(
+  AIC(gam(y ~ s(x, k = 1), sp = sp, family = "binomial", data = data))
+  )
+}
+
+.fitcatgam <- function(y, x, sp){
+  suppressWarnings(
+  fitted(gam(y ~ s(x, k = 1), family = "binomial", sp = c(sp)))
+  )
+}
+
 #Below function used for fitting rqss
 .fitobs <- function(obs, llam.qpred, qpred, l.ypc = FALSE) {
   rqsslo <- rqssmed <- rqsshi <- NULL
@@ -1825,6 +2015,8 @@ binlessfit <- function(o, conf.level = .95, llam.quant = NULL, span = NULL, ...)
   sim <- sim[sim.ub, on = c(x.strat, "qname")]
 }
 
+
+
 # Internal function for optimizing loess fit
 .aicc.loess <- function(fit){
   #compute AIC_C for a LOESS fit, from:
@@ -1889,4 +2081,19 @@ binlessfit <- function(o, conf.level = .95, llam.quant = NULL, span = NULL, ...)
   names(fit) <- names(x)
   return(fit)
 }
+
+.isCensored <- function(obs) {
+  if(!is.null(obs$blq) && any(obs$blq)){
+    ret <- TRUE
+  } else if (!is.null(obs$alq) && any(obs$alq)){
+    ret <- TRUE
+  } else {
+    ret <- FALSE
+  }
+  
+  ret
+  
+}
+
+
 

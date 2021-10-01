@@ -1,9 +1,9 @@
-#' Plot a \code{tidyvpcobj}.
+#' Plot a \code{tidyvpcobj}
 #' 
-#' Use ggplot2 graphics to plot and customize the appearance of VPC
+#' Use ggplot2 graphics to plot and customize the appearance of VPC.
 #' 
-#' @title plot
-#' @param x A tidyvpcobj object.
+#' @param x A \code{tidyvpcobj}.
+#' @param facet Should the resulting plot automatically facet by category? Only applicable for categorical VPC.
 #' @param show.points Should the observed data points be plotted?
 #' @param show.boundaries Should the bin boundary be displayed?
 #' @param show.stats Should the VPC stats be displayed?
@@ -11,22 +11,25 @@
 #' @param xlab A character label for the x-axis.
 #' @param ylab A character label for the y-axis.
 #' @param color A character vector of colors for the percentiles, from low to high.
-#' @param linetype A character vector of linetyps for the percentiles, from low to high.
+#' @param linetype A character vector of line type for the percentiles, from low to high.
 #' @param legend.position A character string specifying the position of the legend.
-#' @param facet.scales A character string specifying the `scales` argument to use for facetting.
-#' @param custom.theme A Character string specifying theme from ggplot2 package
+#' @param facet.scales A character string specifying the \code{scales} argument to use for faceting.
+#' @param custom.theme A character string specifying theme from ggplot2 package.
 #' @param ... Further arguments can be specified but are ignored.
-#' @return A `ggplot` object.
+#' @return A \code{ggplot} object.
 #' @seealso
 #' \code{ggplot}
-#' @rdname plot
 #' @export
-plot.tidyvpcobj <- function(x, ..., show.points=TRUE, show.boundaries=TRUE, show.stats=!is.null(x$stats), show.binning=isFALSE(show.stats), xlab=NULL, ylab=NULL, color=c("red", "blue", "red"), linetype=c("dotted", "solid", "dashed"), legend.position="top", facet.scales="free", custom.theme = "ggplot2::theme_bw") {
+plot.tidyvpcobj <- function(x, ..., facet = FALSE, show.points=TRUE, show.boundaries=TRUE, show.stats=!is.null(x$stats), show.binning=isFALSE(show.stats), xlab=NULL, ylab=NULL, color=c("red", "blue", "red"), linetype=c("dotted", "solid", "dashed"), legend.position="top", facet.scales="free", custom.theme = "ggplot2::theme_bw") {
   
-  xbin <- lo <- hi <- qname <- md <- y <- xleft <- xright <- ypc <- l.ypc <- bin <- NULL
+  xbin <- lo <- hi <- qname <- md <- y <- xleft <- xright <- ypc <- l.ypc <- bin <- blq <- alq <- pname <-  NULL
   . <- list
-  
+
   vpc <- x
+  
+  vpc.type <- vpc$vpc.type
+
+  if(is.null(vpc.type)) vpc.type <- "continuous"
   
   qlvls <- levels(vpc$stats$qname)
   qlbls <- paste0(100*as.numeric(sub("^q", "", qlvls)), "%")
@@ -39,8 +42,10 @@ plot.tidyvpcobj <- function(x, ..., show.points=TRUE, show.boundaries=TRUE, show
   if (!has_ggplot2) {
     stop("Package 'ggplot2' is required for plotting. Please install it to use this method.")
   }
-  if (show.stats) {
-    if (!is.null(vpc$rqss.obs.fits)) {
+  
+  if(vpc.type == "continuous"){
+    if (show.stats) {
+      if (!is.null(vpc$rqss.obs.fits)) {
       g <- ggplot2::ggplot(vpc$stats, ggplot2::aes(x = x)) +
         ggplot2::geom_ribbon(ggplot2::aes(ymin=lo, ymax=hi, fill=qname, col=qname, group=qname), alpha=0.1, col=NA) +
         ggplot2::geom_line(ggplot2::aes(y=md, col=qname, group=qname)) +
@@ -63,7 +68,9 @@ plot.tidyvpcobj <- function(x, ..., show.points=TRUE, show.boundaries=TRUE, show
         ggplot2::guides(
           fill=ggplot2::guide_legend(order=2),
           colour=ggplot2::guide_legend(order=2),
-          linetype=ggplot2::guide_legend(order=1))
+          linetype=ggplot2::guide_legend(order=1)) + 
+        ylab(sprintf("Observed/Simulated probabilities and associated %s%% CI", 100*vpc$conf.level)) +
+        xlab("TIME")
     } else {
       g <- ggplot2::ggplot(vpc$stats, ggplot2::aes(x = xbin)) +
         ggplot2::geom_ribbon(ggplot2::aes(ymin=lo, ymax=hi, fill=qname, col=qname, group=qname), alpha=0.1, col=NA) +
@@ -87,7 +94,9 @@ plot.tidyvpcobj <- function(x, ..., show.points=TRUE, show.boundaries=TRUE, show
         ggplot2::guides(
           fill=ggplot2::guide_legend(order=2),
           colour=ggplot2::guide_legend(order=2),
-          linetype=ggplot2::guide_legend(order=1))
+          linetype=ggplot2::guide_legend(order=1)) + 
+        ylab(sprintf("Observed/Simulated probabilities and associated %s%% CI", 100*vpc$conf.level)) +
+        xlab("TIME")
     }
   } else {
     g <- ggplot2::ggplot(vpc$strat)
@@ -116,9 +125,11 @@ plot.tidyvpcobj <- function(x, ..., show.points=TRUE, show.boundaries=TRUE, show
       }
       points.dat[, color := reorder2(factor(bin), x), by=vpc$strat]
       points.dat[, color := factor(color)]
+      points.dat <- points.dat[!(blq|alq)]
       g <- g + ggplot2::geom_point(data=points.dat, ggplot2::aes(x=x, y=y, color=color), size=1, alpha=0.4, show.legend=FALSE) +
         ggplot2::scale_color_brewer(palette="Set1")
     } else {
+      points.dat <- points.dat[!(blq|alq)]
       g <- g + ggplot2::geom_point(data=points.dat, ggplot2::aes(x=x, y=y), size=1, alpha=0.4)
     }
   }
@@ -138,13 +149,122 @@ plot.tidyvpcobj <- function(x, ..., show.points=TRUE, show.boundaries=TRUE, show
     }
   }
   
-  if (!is.null(vpc$strat)) {
-    if (length(as.list(vpc$strat.formula)) == 3) {
-      g <- g + ggplot2::facet_grid(vpc$strat.formula, scales=facet.scales)
+  if(facet){
+    if (!is.null(vpc$strat)) {
+      g <- g + ggplot2::facet_grid(as.formula(paste("qname ~", paste0(names(vpc$strat), collapse = " + "), sep = " ")), scales=facet.scales, as.table = FALSE)
     } else {
-      g <- g + ggplot2::facet_wrap(names(vpc$strat), scales=facet.scales)
+      g <- g + ggplot2::facet_grid(qname ~ ., scales=facet.scales, as.table =FALSE )
     }
+  } else {
+    if (!is.null(vpc$strat)) {
+      g <- g + ggplot2::facet_grid(vpc$strat.formula, scales=facet.scales)
+    }
+  }
+  
+  } else {
+    if(vpc$vpc.method$method == "binless"){
+      g <- ggplot(vpc$stats, aes(x = x)) +
+        geom_ribbon(aes(ymin = lo, ymax = hi, fill = pname, col = pname, group = pname), alpha = 0.1, col = NA) +
+        geom_line(aes(y = md, col = pname, group = pname)) +
+        geom_line(aes(y = y, linetype = pname), size = 1) +
+        geom_point(aes(x = x, y = y) ) +
+        ylab(sprintf("Observed/Simulated probabilities and associated %s%% CI", 100*vpc$conf.level)) +
+        xlab("TIME") +
+        scale_colour_manual(name = sprintf("Simulated \nMedian (lines) %s%% CI (areas)",100*vpc$conf.level) , breaks = levels(vpc$stats$pname), values = .get_colors(length(levels(vpc$stats$pname))), labels = levels(vpc$stats$pname)) +
+        scale_fill_manual(name = sprintf("Simulated \nMedian (lines) %s%% CI (areas)",100*vpc$conf.level), breaks = levels(vpc$stats$pname), values = .get_colors(length(levels(vpc$stats$pname))), labels = levels(vpc$stats$pname)) +
+        scale_linetype_manual(name = "Observed \nMedian (lines)", breaks = levels(vpc$stats$pname), values = .get_lines(length(levels(vpc$stats$pname))), labels = levels(vpc$stats$pname)) +
+        guides(fill = guide_legend(order = 2), colour = guide_legend(order = 2), linetype = guide_legend(order = 1)) +
+        eval(parse(text = paste0(custom.theme, "()"))) +
+        ggplot2::theme(
+          legend.text = element_text(size = 8),
+          legend.position=legend.position,
+          legend.spacing=unit(.1, "cm"),
+          legend.direction = "horizontal",
+          legend.key.size = unit(.55, "cm")) 
+      
+    } else {
+    g <- ggplot(vpc$stats, aes(x = xbin)) +
+      geom_ribbon(aes(ymin = lo, ymax = hi, fill = pname, col = pname, group = pname), alpha = 0.1, col = NA) +
+      geom_line(aes(y = md, col = pname, group = pname)) +
+      geom_line(aes(y = y, linetype = pname), size = 1) +
+      geom_point(aes(x = xbin, y = y) ) +
+      ylab(sprintf("Observed/Simulated probabilities and associated %s%% CI", 100*vpc$conf.level)) +
+      xlab("TIME") +
+      scale_colour_manual(name = sprintf("Simulated \nMedian (lines) %s%% CI (areas)",100*vpc$conf.level), breaks = levels(vpc$stats$pname), values = .get_colors(length(levels(vpc$stats$pname))), labels = levels(vpc$stats$pname)) +
+      scale_fill_manual(name = sprintf("Simulated \nMedian (lines) %s%% CI (areas)",100*vpc$conf.level), breaks = levels(vpc$stats$pname), values = .get_colors(length(levels(vpc$stats$pname))), labels = levels(vpc$stats$pname)) +
+      scale_linetype_manual(name = "Observed \nMedian (lines)", breaks = levels(vpc$stats$pname), values = .get_lines(length(levels(vpc$stats$pname))), labels = levels(vpc$stats$pname)) +
+      guides(fill = guide_legend(order = 2), colour = guide_legend(order = 2), linetype = guide_legend(order = 1)) +
+      eval(parse(text = paste0(custom.theme, "()"))) +
+      ggplot2::theme(
+        legend.text = element_text(size = 8),
+        legend.position=legend.position,
+        legend.spacing=unit(.1, "cm"),
+        legend.direction = "horizontal",
+        legend.key.size = unit(.55, "cm")) 
+    }
+
+    if(facet){
+      if (!is.null(vpc$strat)) {
+        g <- g + ggplot2::facet_grid(as.formula(paste(paste0(names(vpc$strat), collapse = " + "), "~", "pname", sep = " ")), scales=facet.scales, as.table = TRUE, labeller = label_both)
+      } else {
+        g <- g + ggplot2::facet_grid(~ pname, scales=facet.scales, as.table = FALSE, labeller = label_both)
+      }
+    } else {
+      if (!is.null(vpc$strat)) {
+        g <- g + ggplot2::facet_wrap(names(vpc$strat), scales=facet.scales, label = label_both)
+      }
+    }
+    
+    
   }
   
   g
 }
+
+
+.get_colors <- function(n){
+  if(n <= 1){
+    stop("Levels must be greater than 1")
+  }
+  if(n == 2){
+    colors <- c("green", "blue")
+  } else if(n == 3){
+    colors <- c("green", "blue", "red")
+  } else if(n == 4){
+    colors <- c("green", "blue", "red", "orange")
+  } else if(n == 5){
+    colors <- c("green", "blue", "red", "orange", "purple")
+  } else if(n == 6){
+    colors <- c("green", "blue", "red", "orange", "purple", "yellow")
+  }
+  
+  colors
+}
+
+
+
+
+
+
+.get_lines <- function(n){
+  if(n <= 1){
+    stop("Levels must be greater than 1")
+  }
+  if(n == 2){
+    lines <- c("solid", "dashed")
+  } else if(n == 3){
+    lines <- c("solid", "dashed", "dotted")
+  } else if(n == 4){
+    lines <- c("solid", "dashed", "dotted", "dotdash")
+  } else if(n == 5){
+    lines <- c("solid", "dashed", "dotted", "dotdash", "longdash")
+  } else if(n == 6){
+    lines <- c("solid", "dashed", "dotted", "dotdash", "longdash", "twodash")
+  }
+  
+  lines
+}
+
+
+
+

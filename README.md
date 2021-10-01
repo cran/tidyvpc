@@ -1,8 +1,18 @@
-tidyvpc
-========
 
-<img src="https://github.com/jameswcraig/tidyvpc/blob/master/inst/img/logo_tidyvpc.png?raw=true"  width="200">
-  
+# tidyvpc <a href='https://github.com/certara/tidyvpc/'><img src='https://github.com/certara/tidyvpc/blob/master/inst/img/logo_tidyvpc.png?raw=true' align="right" height="200" /></a>
+
+[![](https://img.shields.io/badge/devel%20version-1.2.0-green.svg)](https://github.com/certara/tidyvpc)
+[![](https://www.r-pkg.org/badges/version/tidyvpc?color=green)](https://cran.r-project.org/package=tidyvpc)
+[![](http://cranlogs.r-pkg.org/badges/grand-total/tidyvpc?color=blue)](https://cran.r-project.org/package=tidyvpc)
+[![](http://cranlogs.r-pkg.org/badges/last-month/tidyvpc?color=grey)](https://cran.r-project.org/package=tidyvpc)
+
+## What's New in 1.2?
+
+* Support for [categorical VPC](https://certara.github.io/tidyvpc/articles/tidyvpc_cat.html) using both binning and binless methods
+* Support for [NPDE](https://certara.github.io/tidyvpc/reference/npde.html)
+
+[Learn More](https://certara.github.io/tidyvpc/articles/tidyvpc_cat.html)
+
 ### Installation and Running information
 ```
 # If there are errors (converted from warning) during installation related to packages built under different version of R,
@@ -14,9 +24,9 @@ remotes::install_github("certara/tidyvpc")
 ### Data Preprocessing
 `tidyvpc` requires specific structure of observed and simulated data in order to sucessfully generate VPC.
 
-* DV cannot be 0 or missing in observed/simulated data i.e. subset `MDV == 0`
-* Ordering of observed and simulated data must be consistent
-* Replicates in simulated data must be stacked on top of each other
+* DV cannot be missing in observed/simulated data i.e. subset `MDV == 0`
+* Observed data must be ordered by: Subject-ID, IVAR (Time)
+* Simulated data must be ordered by: Replicate, Subject-ID, IVAR (Time)
 
 See `tidyvpc::obs_data` and `tidyvpc::sim_data` for example data structures.
 
@@ -28,8 +38,8 @@ library(ggplot2)
 library(tidyvpc)
 
 # Filter MDV = 0
-obs_data <- as.data.table(tidyvpc::obs_data)[MDV == 0]
-sim_data <- as.data.table(tidyvpc::sim_data)[MDV == 0]
+obs_data <- tidyvpc::obs_data[MDV == 0]
+sim_data <- tidyvpc::sim_data[MDV == 0]
 
 #Add LLOQ for each Study 
 obs_data$LLOQ <- obs_data[, ifelse(STUDY == "Study A", 50, 25)]
@@ -43,7 +53,6 @@ vpc <- observed(obs_data, x=TIME, y=DV) %>%
     vpcstats()
 
 ```
-![Example](./inst/img/snapshot1.png)
 
 Plot Code:
 
@@ -81,9 +90,13 @@ ggplot(vpc$stats, aes(x=xbin)) +
         legend.key.width=grid::unit(1, "cm")) +
     labs(x="Time (h)", y="Concentration (ng/mL)")
 ```
-Or use the built in `plot()` function from the tidyvpc package.
 
-```{r}
+<img src='https://github.com/certara/tidyvpc/blob/master/inst/img/snapshot1.png?raw=true' align="center" width="900" height="600" />
+
+
+Or use the built-in `plot()` function from the `tidyvpc` package.
+
+``` r
 # Binless method using 10%, 50%, 90% quantiles and LOESS Prediction Corrected
 
 # Add PRED variable to observed data from first replicate of sim_data
@@ -98,16 +111,4 @@ vpc <- observed(obs_data, x=TIME, y=DV) %>%
 
 plot(vpc)
 ```
-
-![Example](./inst/img/snapshot2.png)
-
-### Shiny Application
-
-The `tidyvpc` package contains a wrapper function to install necessary dependencies and run the [Shiny-VPC Application](https://github.com/jameswcraig/shiny-vpc).
-Use the `runShinyVPC()` function from `tidyvpc` to parameterize VPC from a GUI and generate correpsponding `tidyvpc` 
-and `ggplot2` code to reproduce VPC in your local R session. 
-
-```{r}
-runShinyVPC()
-```
-*Note: Internet access is required to use `runShinyVPC()`*
+<img src='https://github.com/certara/tidyvpc/blob/master/inst/img/snapshot2.png?raw=true' align="center" width="900" height="600" />

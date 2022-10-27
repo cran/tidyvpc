@@ -10,6 +10,7 @@
 #' @import data.table
 #' @import ggplot2
 #' @importFrom magrittr %>%
+#' @importFrom utils packageVersion
 #' @import quantreg
 #' @import classInt
 #' @importFrom mgcv gam
@@ -311,10 +312,11 @@ stratify.tidyvpcobj <- function(o, formula, data=o$data, ...) {
 #' @param altx  Unquoted variable name in observed data for alternative x-variable binning.
 #' @param stratum List indicating the name of stratification variable and level, if using different binning methods by strata.
 #' @param by.strata Logical indicating whether binning should be performed by strata.
-#' @param ... Other arguments to include.
+#' @param ... Other arguments to include for \code{classIntervals}. See \code{...} usage for \code{style} in \code{?classIntervals}.
 #' @return Updates \code{tidyvpcobj} with \code{data.frame} containing bin information including left/right boundaries and midpoint, as specified in \code{xbin} argument.
 #' @seealso \code{\link{observed}} \code{\link{simulated}} \code{\link{censoring}} \code{\link{predcorrect}} \code{\link{stratify}} \code{\link{binless}} \code{\link{vpcstats}}
 #' @examples 
+#' \donttest{
 #' require(magrittr)
 #' 
 #'  # Binning on x-variable NTIME
@@ -349,6 +351,7 @@ stratify.tidyvpcobj <- function(o, formula, data=o$data, ...) {
 #'       simulated(sim_cat_data, y = DV) %>%
 #'       binning(bin = round(agemonths, 0)) %>%
 #'       vpcstats(vpc.type = "categorical")
+#' }
 #' 
 #' @export
 binning <- function(o, ...) UseMethod("binning")
@@ -421,8 +424,8 @@ binning.tidyvpcobj <- function(o, bin, data=o$data, xbin="xmedian", centers, bre
   } else if (is.character(bin) && length(bin) == 1) {
     
     known.classInt.styles <- c("fixed", "sd", "equal", "pretty", "quantile",
-                               "kmeans", "hclust", "bclust", "fisher", "jenks", "dpih")
-    
+                               "kmeans", "hclust", "bclust", "fisher", "jenks", 
+                               "dpih", "headtails", "maximum", "box")
     if (bin == "centers") {
       if (missing(centers)) {
         stop("centers must be specified to use this binning method")
@@ -607,7 +610,7 @@ binless <- function(o, ...) UseMethod("binless")
 #' @export
 binless.tidyvpcobj <- function(o, optimize = TRUE, optimization.interval = c(0,7), loess.ypc = FALSE,  lambda = NULL, span = NULL, sp = NULL, ...) {
   
-  if(class(o) != "tidyvpcobj") {
+  if(!inherits(o, "tidyvpcobj")) {
     stop("No tidyvpcobj found, observed(...) %>% simulated(...) must be called prior to binless()")
   }
   
@@ -627,12 +630,6 @@ binless.tidyvpcobj <- function(o, optimize = TRUE, optimization.interval = c(0,7
     }
     sp <- lapply(sp, function(x)
       x <- c(sp = x))
-  }
-  
-  
- 
-  if(loess.ypc && is.null(o$predcor)) {
-    stop("Use predcorrect() before binless() in order to use LOESS prediction corrected")
   }
   
   if(!is.null(span) && !loess.ypc) {
@@ -1374,6 +1371,10 @@ bin_by_classInt <- function(style, nbins=NULL) {
   has_classInt <- requireNamespace("classInt", quietly=TRUE)
   if (!has_classInt) {
     stop("Package 'classInt' is required to use the binning method. Please install it.")
+  } else {
+    if (style == "box" && paste0(packageVersion("classInt")) < "0.4.8") {
+      stop("'classInt >= 0.4-8' is required to use the 'box' binning method. Please update.")
+    }
   }
   style <- style
   if (!is.null(nbins)) {
@@ -1572,6 +1573,9 @@ binlessaugment <- function(o, qpred = c(0.05, 0.50, 0.95), interval = c(0,7), lo
   environment(.autoloess) <- environment()
   
   if (loess.ypc) {  #Split data on strata to optimize loess
+    if (is.null(o$predcor)) {
+      stop("Must use predcorrect() if binless(loess.ypc=TRUE)")
+    }
     if (!is.null(o$strat)) {
       pred <- o$pred
       obs <- cbind(obs, pred)
@@ -2097,6 +2101,6 @@ binlessfit <- function(o, conf.level = .95, llam.quant = NULL, span = NULL, ...)
 
 .onAttach <- function(libname, pkgname) {
   packageStartupMessage(paste0("tidyvpc is part of Certara.R!\n",
-                               "Follow the link below to learn more about R package development at Cerara.\n",
+                               "Follow the link below to learn more about PMx R package development at Certara.\n",
                                "https://certara.github.io/R-Certara/"))
 }

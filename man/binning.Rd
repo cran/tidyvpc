@@ -24,7 +24,7 @@ binning(o, ...)
 \arguments{
 \item{o}{A \code{tidyvpcobj}.}
 
-\item{...}{Other arguments to include.}
+\item{...}{Other arguments to include for \code{classIntervals}. See \code{...} usage for \code{style} in \code{?classIntervals}.}
 
 \item{bin}{Character string indicating binning method or unquoted variable name if binning on x-variable.}
 
@@ -52,6 +52,7 @@ This function executes binning methods available in classInt i.e. "jenks", "kmea
 You may also bin directly on x-variable or alternatively specify "centers" or "breaks". For explanation of binning methods see \code{\link[classInt]{classIntervals}}.
 }
 \examples{
+\donttest{
 require(magrittr)
 
  # Binning on x-variable NTIME
@@ -86,6 +87,7 @@ vpc <- observed(obs_data, x=TIME, y=DV) \%>\%
       simulated(sim_cat_data, y = DV) \%>\%
       binning(bin = round(agemonths, 0)) \%>\%
       vpcstats(vpc.type = "categorical")
+}
 
 }
 \seealso{

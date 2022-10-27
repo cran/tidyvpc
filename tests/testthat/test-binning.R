@@ -19,7 +19,7 @@ test_that("obs bins equal stats bins", {
   unique_bins_vpc <- unique(vpc$stats$bin)
 
   #Check that bins match for binning on xvar NTIME
-  testthat::expect_equal(unique_bins_obs, unique_bins_vpc)
+  expect_equal(unique_bins_obs, unique_bins_vpc)
   
 })
 
@@ -42,7 +42,7 @@ test_that("cat obs vpcstats is correct", {
   
   
   #Check for equality, dispatches to data.table::all.equal method
-  testthat::expect_identical(all.equal(vpc$stats, stats), TRUE)
+  expect_identical(all.equal(vpc$stats, stats), TRUE)
 
 })
 
@@ -67,6 +67,73 @@ test_that("cat obs strat vpcstats is correct", {
   
   
   #Check for equality, dispatches to data.table::all.equal method
-  testthat::expect_identical(all.equal(vpc$stats, stats), TRUE)
+  expect_identical(all.equal(vpc$stats, stats), TRUE)
   
 })
+
+test_that("binning methods are valid", {
+
+  ## Subest MDV = 0
+  obs <- obs_data[MDV == 0]
+  sim <- sim_data[MDV == 0]
+  
+  vpc <- observed(obs, x = TIME, y = DV )
+  vpc <- simulated(vpc, sim, y = DV)
+  
+  centers <- c(0,1,5,8,12)
+  vpc <- binning(vpc, bin = "centers", centers = centers)
+  expect_equal(vpc$xbin$bin, as.factor(centers))
+  
+  vpc <- binning(vpc, bin = "breaks", breaks = c(1,3,6,9,11))
+  expect_true(length(levels(vpc$xbin$bin)) == 11)
+  
+  vpc <- binning(vpc, bin = "breaks", breaks = c(1,3,6,9,11))
+  expect_true(length(levels(vpc$xbin$bin)) == 11)
+  
+  vpc <- binning(vpc, bin = "pam", nbins = 6)
+  expect_true(max(vpc$xbin$xbin) < 12)
+  
+  vpc <- binning(vpc, bin = "ntile", nbins = 6)
+  expect_true(nrow(vpc$xbin) == 6)
+  
+  vpc <- binning(vpc, bin = "eqcut", nbins = 12)
+  expect_true(nrow(vpc$xbin) == 12)
+  
+  vpc <- binning(vpc, bin = "sd", nbins = 4)
+  expect_true(nrow(vpc$xbin) == 6)
+  
+})
+
+
+test_that("binning by stratum works", {
+  obs_data <- obs_data[MDV == 0]
+  sim_data <- sim_data[MDV == 0]
+  obs_data$PRED <- sim_data[REP == 1, PRED]
+  
+  vpc <- observed(obs_data, x=TIME, y=DV)
+  vpc <- simulated(vpc, sim_data, y=DV)
+  vpc <- stratify(vpc, ~ GENDER + STUDY) 
+  vpc <- binning(vpc, stratum = list(GENDER = "M", STUDY = "Study A"), bin = "jenks", nbins = 5, by.strata = T)
+  vpc <- binning(vpc, stratum = list(GENDER = "F", STUDY = "Study A"), bin = "centers", centers = c(0.5,3,5,10,15), by.strata = T)
+  vpc <- binning(vpc, stratum = list(GENDER = "M", STUDY = "Study B"), bin = "kmeans", by.strata = T)
+  vpc <- binning(vpc, stratum = list(GENDER = "F", STUDY = "Study B"), bin = "pam", nbins = 5, by.strata = T)
+  vpc <- predcorrect(vpc, pred=PRED) 
+  vpc <- vpcstats(vpc)
+  
+  expect_true(inherits(vpc, "tidyvpcobj") && vpc$bin.by.strata)
+  
+})
+
+  
+test_that("binning errors are valid", {
+  
+  obs <- obs_data[MDV == 0]
+  sim <- sim_data[MDV == 0]
+  
+  vpc <- observed(obs, x = TIME, y = DV )
+  vpc <- simulated(vpc, sim, y = DV)
+  expect_true(inherits(binning(vpc, xbin = NTIME), "tidyvpcobj"))
+  expect_error(binning(vpc, xbin = c(1:5)))
+  
+})
+  

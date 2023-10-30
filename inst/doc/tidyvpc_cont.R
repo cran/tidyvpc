@@ -6,6 +6,9 @@ library(ggplot2)
 library(magrittr)
 set.seed(1014)
 
+## ---- echo=FALSE--------------------------------------------------------------
+data.table::setDTthreads(2)
+
 ## ----message=FALSE------------------------------------------------------------
 obs_data <- data.table::as.data.table(tidyvpc::obs_data)
 head(obs_data)
@@ -92,19 +95,7 @@ vpc <- observed(obs_data, x=TIME, y=DV) %>%
     binning(bin = "jenks", nbins = 5) %>%
     vpcstats()
 
-plot(vpc)
-
-## -----------------------------------------------------------------------------
-obs_data$LLOQ <- 50
-
-## ----fig.width = 9, fig.height = 6, out.width=640, warning = FALSE------------
-vpc <- observed(obs_data, x=TIME, y=DV) %>%
-    simulated(sim_data, y=DV) %>%
-    censoring(blq=(DV < LLOQ), lloq=LLOQ) %>%
-    binless(optimize = FALSE, lambda = c(1.5, 2.5, 1.7)) %>%
-    vpcstats()
-
-plot(vpc)
+plot(vpc, censoring.type = "blq")
 
 ## ----fig.width = 9, fig.height = 6, out.width=640, warning = FALSE------------
 obs_data$LLOQ <- obs_data[, ifelse(STUDY == "Study A", 50, 25)]
@@ -116,7 +107,30 @@ vpc <- observed(obs_data, x=TIME, y=DV) %>%
     binning(bin = "pam", nbins = 4) %>%
     vpcstats(qpred = c(0.1, 0.5, 0.9))
 
-plot(vpc)
+plot(vpc, censoring.type = "blq", facet.scales = "fixed")
+
+## ----fig.width = 9, fig.height = 6, out.width=640, warning = FALSE, eval = FALSE----
+#  obs_data$ULOQ <- obs_data[, ifelse(STUDY == "Study A", 125, 100)]
+#  
+#  vpc <- observed(obs_data, x = TIME, y = DV) |>
+#    simulated(sim_data, y = DV) |>
+#    censoring(alq = DV > ULOQ, uloq = ULOQ) |>
+#    stratify(~ STUDY) |>
+#    binning(bin = NTIME) |>
+#    vpcstats(qpred = c(0.1, 0.5, 0.9))
+
+## ----fig.width = 9, fig.height = 6, out.width=640, warning = FALSE------------
+obs_data$LLOQ <- obs_data[, ifelse(STUDY == "Study A", 50, 25)]
+obs_data$ULOQ <- obs_data[, ifelse(STUDY == "Study A", 125, 100)]
+
+vpc <- observed(obs_data, x = TIME, y = DV) |>
+  simulated(sim_data, y = DV) |>
+  censoring(blq = DV < LLOQ, lloq = LLOQ,  alq = DV > ULOQ, uloq = ULOQ) |>
+  stratify(~ STUDY) |>
+  binning(bin = NTIME) |>
+  vpcstats(qpred = c(0.1, 0.5, 0.9))
+
+plot(vpc, censoring.type = "both", facet.scales = "fixed")
 
 ## ----fig.width = 9, fig.height = 6, out.width=640-----------------------------
 vpc <- observed(obs_data, x=TIME, y=DV) %>%
@@ -132,8 +146,8 @@ plot(vpc)
 vpc <- observed(obs_data, x=TIME, y=DV) %>%
     simulated(sim_data, y=DV) %>%
     stratify(~GENDER) %>%
+    binless(qpred = c(0.1, 0.5, 0.9), optimize = TRUE) %>%
     predcorrect(pred=PRED) %>%
-    binless(qpred = c(0.1, 0.5, 0.9), optimize = TRUE, loess.ypc = TRUE) %>%
     vpcstats()
 
 plot(vpc)
@@ -142,7 +156,7 @@ plot(vpc)
 vpc <- observed(obs_data, x=TIME, y=DV) %>%
     simulated(sim_data, y=DV) %>%
     predcorrect(pred=PRED) %>%
-    binless(optimize = FALSE, lambda = c(.95,3,1.2), loess.ypc = TRUE, span = .6) %>%
+    binless(optimize = FALSE, lambda = c(.95,3,1.2), span = .6) %>%
     vpcstats()
 
 plot(vpc)
@@ -166,8 +180,8 @@ user_lambda <- data.frame(GENDER_F = c(2,4,2), GENDER_M = c(1.9,3,2.25) )
 vpc <- observed(obs_data, x=TIME, y=DV) %>%
     simulated(sim_data, y=DV) %>%
     stratify(~ GENDER) %>%
+    binless(optimize = FALSE, lambda = user_lambda, span = c(.6, .85)) %>%
     predcorrect(pred=PRED) %>%
-    binless(optimize = FALSE, lambda = user_lambda, loess.ypc = TRUE, span = c(.6, .85)) %>%
     vpcstats(qpred = c(0.1, 0.5, 0.9))
 
 plot(vpc)

@@ -7,6 +7,9 @@ library(magrittr)
 library(data.table)
 set.seed(1014)
 
+## ---- echo=FALSE--------------------------------------------------------------
+data.table::setDTthreads(2)
+
 ## ----tidyvpc_setup------------------------------------------------------------
 library(tidyvpc)
 library(data.table)

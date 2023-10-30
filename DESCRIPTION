@@ -1,8 +1,7 @@
 Package: tidyvpc
 Type: Package
 Title: VPC Percentiles and Prediction Intervals
-Version: 1.4.0
-Date: 2022-10-25
+Version: 1.5.0
 Authors@R: c(
       person("Olivier", "Barriere", email = "olivier.barriere@gmail.com",
       role = c("aut")),
@@ -12,6 +11,9 @@ Authors@R: c(
       role = c("aut", "cre")),
       person("Samer", "Mouksassi", email = "samermouksassi@gmail.com",
       role = c("aut")),
+      person("Bill", "Denney", email="wdenney@humanpredictions.com", 
+      role="ctb", 
+      comment=c(ORCID="0000-0002-5759-428X")),
       person("Kris", "Jamsen",
       role = c("ctb")),
       person("Certara USA, Inc.", role = c("cph","fnd"))
@@ -28,22 +30,23 @@ BugReports: https://github.com/certara/tidyvpc/issues
 Depends: R (>= 3.5.0),
 Imports: data.table (>= 1.9.8), magrittr, quantreg (>= 5.51), rlang (>=
         0.3.0), methods, mgcv, classInt, ggplot2, stats, fastDummies,
-        utils
-Suggests: cluster, dplyr, KernSmooth, knitr, shiny, remotes, vpc,
-        rmarkdown, testthat (>= 2.1.0)
+        utils, egg
+Suggests: cluster, dplyr, KernSmooth, knitr, nlmixr2, shiny, remotes,
+        vpc, rmarkdown, testthat (>= 2.1.0), vdiffr (>= 1.0.0)
 License: MIT + file LICENSE
 LazyData: true
 Encoding: UTF-8
 VignetteBuilder: knitr
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.3
 NeedsCompilation: no
-Packaged: 2022-10-27 19:59:28 UTC; jcraig
+Packaged: 2023-10-30 14:36:18 UTC; jcraig
 Author: Olivier Barriere [aut],
   Benjamin Rich [aut],
   James Craig [aut, cre],
   Samer Mouksassi [aut],
+  Bill Denney [ctb] (<https://orcid.org/0000-0002-5759-428X>),
   Kris Jamsen [ctb],
   Certara USA, Inc. [cph, fnd]
 Maintainer: James Craig <james.craig@certara.com>
 Repository: CRAN
-Date/Publication: 2022-10-27 20:20:02 UTC
+Date/Publication: 2023-10-30 15:10:03 UTC

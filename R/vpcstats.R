@@ -358,7 +358,7 @@ stratify.tidyvpcobj <- function(o, formula, data=o$data, ...) {
 #'     simulated(sim_data, y=DV) %>%
 #'     stratify(~ GENDER) %>%
 #'     binning(stratum = list(GENDER = "M"), bin = "jenks", nbins = 5, by.strata = TRUE) %>%
-#'     binning(stratum = list(GENDER = "F"), bin = "pam", nbins = 4, by.strata = TRUE) %>%
+#'     binning(stratum = list(GENDER = "F"), bin = "kmeans", nbins = 4, by.strata = TRUE) %>%
 #'     vpcstats()
 #'
 #'  # Binning Categorical DV using rounded time variable
@@ -763,10 +763,8 @@ bininfo.tidyvpcobj <- function(o, by.strata=o$bin.by.strata, ...) {
 #' bin_by_eqcut(nbins=4)(x)
 #' bin_by_ntile(nbins=4)(x)
 #'
-#' \donttest{
 #' bin_by_pam(nbins=4)(x)
 #' bin_by_classInt("pretty", nbins=4)(x)
-#' }
 #'
 #' @name binningfunctions
 NULL
@@ -852,7 +850,7 @@ bin_by_classInt <- function(style, nbins=NULL) {
   if (!has_classInt) {
     stop("Package 'classInt' is required to use the binning method. Please install it.")
   } else {
-    if (style == "box" && paste0(packageVersion("classInt")) < "0.4.8") {
+    if (style == "box" && packageVersion("classInt") < "0.4.8") {
       stop("'classInt >= 0.4-8' is required to use the 'box' binning method. Please update.")
     }
   }

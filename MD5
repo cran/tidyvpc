@@ -1,4 +1,4 @@
-758c0e4c96578bba24d0279a1fd5a28d *DESCRIPTION
+f5215fd90908ff3219a88d34625bade2 *DESCRIPTION
 24075e11b5b8e4d91f618e228900b9a8 *LICENSE
 1398b49d263e277faefde682f43d78f6 *NAMESPACE
 f301981c661e6efe6978711b9b94eeef *NEWS.md
@@ -6,9 +6,9 @@ f301981c661e6efe6978711b9b94eeef *NEWS.md
 6cf51d895e746a76dfe77e9a62f89069 *R/data.R
 52669108d82979731a3db1a93e7f323b *R/npde.R
 fa24369774a9fe60927c4b9516934340 *R/plot.R
-ebe3a3ac9f5f3c628f9e8f465c44af3f *R/vpcstats.R
+fbee9bf2d4d80ccf4ee59ba1f947465e *R/vpcstats.R
 b7fcba9fb3adce5294d49430538ebe7c *R/vpcstats_fun.R
-f562b0d3b38c2ae16a67dd3730a7224c *README.md
+d591f76e4724d050bfd1e0e58051a3e8 *README.md
 5363240f26615feb3d5e04312daadef1 *build/vignette.rds
 df2da6579a6dc8625a838c7e9b46539d *data/obs_cat_data.rda
 30b7081d6504fd539b87a3c6691b1990 *data/obs_data.rda
@@ -41,8 +41,8 @@ b9de368489a8150057ad4dd13549a20f *inst/img/logo_tidyvpc.png
 5fb93601105b9dc266acaee92f9a9405 *inst/img/snapshot2.png
 b5cf750bac8963dda4bd294607121aa3 *man/bininfo.Rd
 e6aa5ae6804c27d0cee19d14f13dcaeb *man/binless.Rd
-a6406833205f5d4150a3859b05d81b83 *man/binning.Rd
-db80d45340c4afd30dba2656a04459e8 *man/binningfunctions.Rd
+d7c261cf6904682d1507c3b8cd3f771e *man/binning.Rd
+c7fdab3d079b6a13df81e2a73104a6d5 *man/binningfunctions.Rd
 c4c762ef52ac31f93b3d885bb3658b3a *man/censoring.Rd
 bd5622b60e27dbe8fa9d97fc395cb272 *man/check_order.Rd
 c1bdc1de681dd670093120e3f422a58d *man/generics.Rd
@@ -59,7 +59,7 @@ a38a5290fd046aacb09d74889076e45a *man/sim_data.Rd
 f9b92559a650f4641d74a64dd6c3c641 *man/simulated.Rd
 2b2665ac89f8c58fdabc6470cf4e5664 *man/stratify.Rd
 26c738dfca5733fbc2690feb0dbca929 *man/vpcstats.Rd
-3c9ddb139764466f55231ed0f001f706 *tests/testthat.R
+09c75c286bfc4f43a73391629313d099 *tests/testthat.R
 decb2d3bee695dfebf4a99652055d857 *tests/testthat/_snaps/plot/bins-without-stats.svg
 7f515793d5f635f4246987aa8e60dcf3 *tests/testthat/_snaps/plot/bins-ypc-without-stats.svg
 24ad6b0c0fbb7e3d45e1baf65548c0f7 *tests/testthat/_snaps/plot/censored-plot-with-aql.svg
@@ -69,7 +69,7 @@ d2f7f034b51eae37f229bfc6df16dc7c *tests/testthat/_snaps/plot/one-sided-strat-for
 9e3d992aeba44bd3fa5b45a1361bf546 *tests/testthat/_snaps/plot/single-value-group.svg
 f49a5126258ecea831cbad7e9c0a137c *tests/testthat/_snaps/plot/two-sided-strat-formula-with-facet-grid.svg
 d148bad5987b21e6d8e952bbb0f076db *tests/testthat/test-binless.R
-7a9a3b59c8060163adeeb0ddb3bb2735 *tests/testthat/test-binning.R
+8e5bfd84963b307523e43023e37c75fe *tests/testthat/test-binning.R
 f9cf4d20c72f235d4750cc4b2a6af368 *tests/testthat/test-censoring.R
 f7fbcb4f1de2f83b1ec6eecc3b34fe69 *tests/testthat/test-data_check.R
 667f2379b2ae142a23312efa896a2da7 *tests/testthat/test-plot.R

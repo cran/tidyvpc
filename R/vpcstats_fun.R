@@ -29,16 +29,22 @@ vpcstats.tidyvpcobj <- function(o, vpc.type =c("continuous", "categorical"), qpr
   type <- match.arg(vpc.type)
   method <- o$vpc.method
 
-  stopifnot(method$method %in% c("binless", "binning"))
+  if (!isTRUE(method$method %in% c("binless", "binning"))) {
+    stop(
+      "A binning method should be specified through binning() or binless() execution before vpcstats() run."
+    )
+  }
+
   stopifnot(length(qpred) == 3)
 
-  repl <- ypc <- y <- x <- blq <- lloq <- alq <- uloq <- NULL
+  repl <- ypc <- ypcvc <- y <- x <- blq <- lloq <- alq <- uloq <- NULL
   . <- list
   qconf <- c(0, 0.5, 1) + c(1, 0, -1)*(1 - conf.level)/2
 
   obs      <- o$obs
   sim      <- o$sim
   predcor  <- o$predcor
+  varcorr  <- o$varcorr
   stratbin <- o$.stratbin
   xbin     <- o$xbin
   strat    <- o$strat
@@ -55,8 +61,8 @@ vpcstats.tidyvpcobj <- function(o, vpc.type =c("continuous", "categorical"), qpr
 
     ylvls <-  sort(unique(obs$y))
 
-    # categorical binless vpcstats() ----
     if(method$method == "binless"){
+      # categorical binless vpcstats() ----
       xobs     <- obs$x
       xsim <- sim$x
       sp <- method$sp
@@ -147,7 +153,7 @@ vpcstats.tidyvpcobj <- function(o, vpc.type =c("continuous", "categorical"), qpr
         stop("Need to specify binning before calling vpcstats.")
       }
       if (any(is.na(stratbin$bin))) {
-        warning("There are bins missing. Has binning been specified for all strata?", call.=F)
+        warning("There are bins missing. Has binning been specified for all strata?", call.=FALSE)
       }
 
       .stratbinrepl <- data.table(stratbin, sim[, .(repl)])
@@ -181,8 +187,8 @@ vpcstats.tidyvpcobj <- function(o, vpc.type =c("continuous", "categorical"), qpr
     }
     # update vpc
     update(o, stats=stats, conf.level=conf.level, vpc.type = type, vpc.method = method)
-    # continuous vpcstats ----
   } else {
+    # continuous vpcstats ----
     if(method$method == "binless") {
       .binlessvpcstats(o, qpred=qpred, conf.level=conf.level, quantile.type=quantile.type, vpc.type = type, vpc.method = method)
     } else {
@@ -197,10 +203,15 @@ vpcstats.tidyvpcobj <- function(o, vpc.type =c("continuous", "categorical"), qpr
       .stratbinrepl <- data.table(stratbin, sim[, .(repl)])
 
       if (isTRUE(predcor)) {
-        qobs <- obs[, quant_loq(ypc, probs=qpred, blq=blq,   alq=alq,   type = quantile.type),   by=stratbin]
-        qsim <- sim[, quant_loq(ypc, probs=qpred, blq=FALSE, alq=FALSE, type = quantile.type), by=.stratbinrepl]
+        if (isTRUE(varcorr)) {
+          qobs <- obs[, quant_loq(ypcvc, probs=qpred, blq=blq,   alq=alq,   type = quantile.type), by=stratbin]
+          qsim <- sim[, quant_loq(ypcvc, probs=qpred, blq=FALSE, alq=FALSE, type = quantile.type), by=.stratbinrepl]
+        } else {
+          qobs <- obs[, quant_loq(ypc, probs=qpred, blq=blq,   alq=alq,   type = quantile.type), by=stratbin]
+          qsim <- sim[, quant_loq(ypc, probs=qpred, blq=FALSE, alq=FALSE, type = quantile.type), by=.stratbinrepl]
+        }
       } else {
-        qobs <- obs[, quant_loq(y, probs=qpred, blq=blq,   alq=alq  , type = quantile.type),   by=stratbin]
+        qobs <- obs[, quant_loq(y, probs=qpred, blq=blq,   alq=alq,   type = quantile.type), by=stratbin]
         qsim <- sim[, quant_loq(y, probs=qpred, blq=FALSE, alq=FALSE, type = quantile.type), by=.stratbinrepl]
       }
 

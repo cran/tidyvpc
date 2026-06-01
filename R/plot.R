@@ -28,6 +28,11 @@
 #'  \code{\link{censoring}} was performed.
 #' @param censoring.output A character string specifying whether to return percentage of blq/alq plots as an
 #' arranged \code{"grid"} or as elements in a \code{"list"}. Only applicable if \code{censoring.type != "none"}.
+#' @param censoring.color A named character vector of colors for the censoring plot lines. Names must include
+#' \code{"observed"} and \code{"simulated"}. Default is \code{c(observed = "black", simulated = "red")}.
+#' Only applicable if \code{censoring.type != "none"}.
+#' @param censoring.fill A character string specifying the fill color for the censoring plot ribbon.
+#' Default is \code{"red"}. Only applicable if \code{censoring.type != "none"}.
 #' @param ... Additional arguments for \code{\link[egg]{ggarrange}} e.g., \code{ncol} and \code{nrow}.
 #' Only used if \code{censoring.type != "none"} and \code{censoring.output == "grid"}.
 #' @return A \code{ggplot} object.
@@ -53,6 +58,8 @@ plot.tidyvpcobj <- function(x,
                             custom.theme = NULL,
                             censoring.type = c("none", "both", "blq", "alq"),
                             censoring.output = c("grid", "list"),
+                            censoring.color = c(observed = "black", simulated = "red"),
+                            censoring.fill = "red",
                             ...) {
 
   xbin <- lo <- hi <- qname <- md <- y <- xleft <- xright <- ypc <- l.ypc <- bin <- blq <- alq <- pname <-  NULL
@@ -156,7 +163,9 @@ plot.tidyvpcobj <- function(x,
           legend.position,
           show.points,
           show.boundaries,
-          show.binning
+          show.binning,
+          censoring.color,
+          censoring.fill
         )
     }
 
@@ -170,7 +179,9 @@ plot.tidyvpcobj <- function(x,
           legend.position,
           show.points,
           show.boundaries,
-          show.binning
+          show.binning,
+          censoring.color,
+          censoring.fill
         )
     }
 
@@ -239,7 +250,7 @@ plot_continuous <-
            point.shape,
            point.stroke,
            point.alpha) {
-    alq <- bin <- blq <- hi <- l.ypc <- lo <- md <- pname <- qname <- NULL
+    alq <- bin <- blq <- fit <- hi <- l.ypc <- lo <- md <- pname <- qname <- NULL
     x <- xleft <- xright <- y <- ypc <- ypcvc <- NULL
     . <- list
     method <- vpc$vpc.method$method
@@ -272,9 +283,19 @@ plot_continuous <-
           alpha = ribbon.alpha,
           col = NA
         ) +
-        ggplot2::geom_line(ggplot2::aes(y = md, col = qname, group = qname)) +
-        ggplot2::geom_line(ggplot2::aes(y = y, linetype = qname), linewidth =
-                             1) +
+        ggplot2::geom_line(ggplot2::aes(y = md, col = qname, group = qname))
+      
+      if (method == "binless" && !vpc$replicate) {
+        g <-
+          g + ggplot2::geom_line(
+            ggplot2::aes(y = fit, linetype = qname),
+            linewidth = 1,
+            data = vpc$rqss.obs.fits
+          )
+      } else {
+        g <- g + ggplot2::geom_line(ggplot2::aes(y = y, linetype = qname), linewidth = 1)
+      }
+       g <- g +
         ggplot2::scale_colour_manual(
           name = sprintf(
             "Simulated Percentiles\nMedian (lines) %s%% CI (areas)",
@@ -520,7 +541,9 @@ plot_censored <-
            legend.position,
            show.points,
            show.boundaries,
-           show.binning) {
+           show.binning,
+           censoring.color = c(observed = "black", simulated = "red"),
+           censoring.fill = "red") {
 
     stopifnot(inherits(vpc, "tidyvpcobj"))
     hi <- lo <- md <- xbin <- y <- x <- xleft <- xright <- blq <- alq <- NULL
@@ -559,7 +582,7 @@ plot_censored <-
 
     g <- g +
       geom_ribbon(aes(x = !!sym(xvar), ymin = lo, ymax = hi),
-                  fill = "red",
+                  fill = censoring.fill,
                   alpha = .2) +
       geom_line(aes(x = !!sym(xvar), y = md, color = "simulated")) +
       geom_line(aes(x = !!sym(xvar), y = y, color = "observed")) +
@@ -570,8 +593,7 @@ plot_censored <-
           sprintf("\nMedian (lines) %s%% CI (areas)",
                   100 * vpc$conf.level)
         ),
-        values = c(simulated = "red",
-                   observed = "black")
+        values = censoring.color
       ) +
       labs(x = "TIME", y = paste0("% ", toupper(type)))
 
